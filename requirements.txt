@@ -1,5 +1,4 @@
 # Dependências para o Reddit to Telegram Bot
 praw>=7.7.1
 requests>=2.31.0
-ffmpeg-python>=0.2.0
 yt-dlp

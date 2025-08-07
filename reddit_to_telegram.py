@@ -366,7 +366,7 @@ class RedditToTelegramBot:
             temp_file = tempfile.NamedTemporaryFile(delete=False, suffix='.mp4')
             temp_file.close()
             
-            # Comando yt-dlp para baixar e converter
+            # Comando yt-dlp para baixar sem merge (evita necessidade do ffmpeg)
             cmd = [
                 'yt-dlp',
                 '--no-playlist',
@@ -374,7 +374,9 @@ class RedditToTelegramBot:
                 '--output', temp_file.name.replace('.mp4', '.%(ext)s'),
                 '--no-check-certificate',
                 '--user-agent', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
-                '--merge-output-format', 'mp4',
+                '--format', 'dash-4+dash-6/dash-3+dash-6/dash-2+dash-6/dash-1+dash-6/hls-1157-0/hls-768-0/hls-455-0/hls-297-0/best',  # Formatos específicos do Reddit
+                '--no-post-overwrites',
+                '--verbose',        # Mais informações para debug
                 reddit_url
             ]
             
@@ -391,13 +393,44 @@ class RedditToTelegramBot:
                     timeout=180  # 3 minutos timeout
                 )
                 
-                if result.returncode == 0 and os.path.exists(temp_file.name) and os.path.getsize(temp_file.name) > 0:
-                    logger.info(f"Download HLS/DASH concluído: {temp_file.name}")
-                    return temp_file.name
+                if result.returncode == 0:
+                    # Procura por arquivos baixados com qualquer extensão
+                    base_name = temp_file.name.replace('.mp4', '')
+                    possible_files = []
+                    
+                    # Verifica diretório para arquivos com o nome base
+                    import glob
+                    pattern = base_name + '.*'
+                    possible_files = glob.glob(pattern)
+                    
+                    # Encontra o arquivo baixado
+                    downloaded_file = None
+                    for file_path in possible_files:
+                        if os.path.exists(file_path) and os.path.getsize(file_path) > 0:
+                            downloaded_file = file_path
+                            break
+                    
+                    if downloaded_file:
+                        logger.info(f"Download HLS/DASH concluído: {downloaded_file}")
+                        return downloaded_file
+                    else:
+                        logger.warning(f"Nenhum arquivo válido encontrado após download")
+                        return None
                 else:
                     logger.warning(f"yt-dlp falhou - código: {result.returncode}")
                     logger.warning(f"stdout: {result.stdout}")
                     logger.warning(f"stderr: {result.stderr}")
+                    
+                    # Tenta listar formatos disponíveis para debug
+                    try:
+                        list_cmd = ['yt-dlp', '--list-formats', reddit_url]
+                        list_result = subprocess.run(list_cmd, capture_output=True, text=True, timeout=30)
+                        if list_result.returncode == 0:
+                            logger.info(f"Formatos disponíveis para {reddit_url}:")
+                            logger.info(list_result.stdout)
+                    except Exception as e:
+                        logger.warning(f"Erro ao listar formatos: {e}")
+                    
                     if os.path.exists(temp_file.name):
                         os.unlink(temp_file.name)
                     return None
