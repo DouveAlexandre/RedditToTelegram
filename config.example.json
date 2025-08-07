@@ -19,5 +19,6 @@
     ],
     "check_interval": 300,
     "max_posts_per_check": 10,
-    "debug_emoji": true
+    "debug_emoji": true,
+    "send_text_only_posts": false
 }

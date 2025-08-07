@@ -81,7 +81,8 @@ class RedditToTelegramBot:
             ],
             "check_interval": 300,
             "max_posts_per_check": 10,
-            "debug_emoji": true
+            "debug_emoji": true,
+            "send_text_only_posts": false
         }
         
         with open(config_file, 'w', encoding='utf-8') as f:
@@ -219,20 +220,23 @@ class RedditToTelegramBot:
         try:
             image_url = None
             
-            # Método 1: Verifica media_metadata para imagens
+            # Método 1: Verifica media_metadata para imagens (apenas a primeira)
             if hasattr(post, 'media_metadata') and post.media_metadata:
-                logger.info(f"Verificando media_metadata para imagens")
-                for media_id, media_info in post.media_metadata.items():
+                logger.info(f"Verificando media_metadata para imagens (apenas primeira)")
+                # Ordena as chaves para garantir consistência na ordem
+                sorted_media_ids = sorted(post.media_metadata.keys())
+                for media_id in sorted_media_ids:
+                    media_info = post.media_metadata[media_id]
                     if media_info.get('e') == 'Image':
                         # Prioriza a imagem de melhor qualidade (campo 's')
                         if 's' in media_info and 'u' in media_info['s']:
                             image_url = media_info['s']['u']
-                            logger.info(f"URL da imagem encontrada via media_metadata (melhor qualidade): {image_url}")
+                            logger.info(f"URL da primeira imagem encontrada via media_metadata (melhor qualidade): {image_url}")
                             break
                         # Fallback para o campo 'o' (original)
                         elif 'o' in media_info and len(media_info['o']) > 0 and 'u' in media_info['o'][0]:
                             image_url = media_info['o'][0]['u']
-                            logger.info(f"URL da imagem encontrada via media_metadata (original): {image_url}")
+                            logger.info(f"URL da primeira imagem encontrada via media_metadata (original): {image_url}")
                             break
                         # Fallback para o maior preview disponível
                         elif 'p' in media_info and len(media_info['p']) > 0:
@@ -240,7 +244,7 @@ class RedditToTelegramBot:
                             largest_preview = max(media_info['p'], key=lambda x: x.get('x', 0) * x.get('y', 0))
                             if 'u' in largest_preview:
                                 image_url = largest_preview['u']
-                                logger.info(f"URL da imagem encontrada via media_metadata (preview): {image_url}")
+                                logger.info(f"URL da primeira imagem encontrada via media_metadata (preview): {image_url}")
                                 break
             
             # Método 2: Verifica se a URL do post é uma imagem direta
@@ -249,13 +253,13 @@ class RedditToTelegramBot:
                     image_url = post.url
                     logger.info(f"URL da imagem encontrada diretamente: {image_url}")
             
-            # Método 3: Verifica preview para imagens
+            # Método 3: Verifica preview para imagens (apenas a primeira)
             if not image_url and hasattr(post, 'preview') and post.preview:
                 if 'images' in post.preview and len(post.preview['images']) > 0:
-                    preview_image = post.preview['images'][0]
+                    preview_image = post.preview['images'][0]  # Pega apenas a primeira imagem
                     if 'source' in preview_image and 'url' in preview_image['source']:
                         image_url = preview_image['source']['url']
-                        logger.info(f"URL da imagem encontrada no preview: {image_url}")
+                        logger.info(f"URL da primeira imagem encontrada no preview: {image_url}")
             
             if not image_url:
                 logger.info(f"Nenhuma URL de imagem encontrada para o post {post.id}")
@@ -293,19 +297,22 @@ class RedditToTelegramBot:
                     video_url = post.media['reddit_video']['fallback_url']
                     logger.info(f"Vídeo encontrado em post de texto: {video_url}")
             
-            # Método 3: Vídeo em media_metadata (posts NSFW com vídeo incorporado)
+            # Método 3: Vídeo em media_metadata (posts NSFW com vídeo incorporado) - apenas o primeiro
             if not video_url and hasattr(post, 'media_metadata') and post.media_metadata:
-                logger.info(f"Método 3: Verificando media_metadata")
-                for media_id, media_info in post.media_metadata.items():
+                logger.info(f"Método 3: Verificando media_metadata (apenas primeiro vídeo)")
+                # Ordena as chaves para garantir consistência na ordem
+                sorted_media_ids = sorted(post.media_metadata.keys())
+                for media_id in sorted_media_ids:
+                    media_info = post.media_metadata[media_id]
                     if media_info.get('e') == 'RedditVideo':
                         # Prioriza HLS sobre DASH
                         if 'hlsUrl' in media_info:
                             video_url = media_info['hlsUrl']
-                            logger.info(f"URL HLS do vídeo encontrada via media_metadata: {video_url}")
+                            logger.info(f"URL HLS do primeiro vídeo encontrada via media_metadata: {video_url}")
                             break
                         elif 'dashUrl' in media_info:
                             video_url = media_info['dashUrl']
-                            logger.info(f"URL DASH do vídeo encontrada via media_metadata: {video_url}")
+                            logger.info(f"URL DASH do primeiro vídeo encontrada via media_metadata: {video_url}")
                             break
             
             # Método 4: Verifica se há preview com vídeo
@@ -423,6 +430,42 @@ class RedditToTelegramBot:
                 logger.info(f"Arquivo temporário removido: {file_path}")
         except Exception as e:
             logger.error(f"Erro ao remover arquivo temporário {file_path}: {e}")
+    
+    def has_media_content(self, post) -> bool:
+        """Verifica se o post contém mídia (imagem ou vídeo)"""
+        try:
+            # Verifica se é vídeo do Reddit
+            if hasattr(post, 'is_video') and post.is_video:
+                return True
+            
+            # Verifica se tem media_metadata (imagens/vídeos)
+            if hasattr(post, 'media_metadata') and post.media_metadata:
+                return True
+            
+            # Verifica se tem media (vídeos)
+            if hasattr(post, 'media') and post.media:
+                return True
+            
+            # Verifica se tem preview (imagens)
+            if hasattr(post, 'preview') and post.preview:
+                return True
+            
+            # Verifica se a URL é uma imagem/vídeo direto
+            if not post.is_self and post.url:
+                media_extensions = ['.jpg', '.jpeg', '.png', '.gif', '.webp', '.mp4', '.webm', '.mov']
+                if any(ext in post.url.lower() for ext in media_extensions):
+                    return True
+                
+                # Verifica se é link de vídeo conhecido
+                video_domains = ['youtube.com', 'youtu.be', 'v.redd.it', 'reddit.com/gallery']
+                if any(domain in post.url.lower() for domain in video_domains):
+                    return True
+            
+            return False
+            
+        except Exception as e:
+            logger.error(f"Erro ao verificar mídia do post {post.id}: {e}")
+            return False
     
     def extract_model_name(self, title: str) -> str:
         """Extrai o nome da modelo do título do post"""
@@ -596,6 +639,16 @@ class RedditToTelegramBot:
                 for post in subreddit.new(limit=self.config.get('max_posts_per_check', 10)):
                     if post.id not in self.processed_posts:
                         logger.info(f"Novo post encontrado: {post.title}")
+                        
+                        # Verifica se deve enviar posts apenas com texto
+                        send_text_only = self.config.get('send_text_only_posts', False)
+                        has_media = self.has_media_content(post)
+                        
+                        # Se a configuração está desabilitada e o post só tem texto, pula
+                        if not send_text_only and not has_media:
+                            logger.info(f"Post {post.id} pulado - apenas texto e send_text_only_posts=false")
+                            self.processed_posts.add(post.id)
+                            continue
                         
                         # Verifica se é conteúdo NSFW
                         is_nsfw = getattr(post, 'over_18', False)

@@ -54,6 +54,9 @@ def create_config():
     debug_emoji_input = input("Ativar emoji de depuração nas mensagens? (S/n): ").strip().lower()
     debug_emoji = debug_emoji_input not in ['n', 'no', 'não', 'nao']
     
+    send_text_only_input = input("Enviar posts que contêm apenas texto (sem mídia)? (s/N): ").strip().lower()
+    send_text_only_posts = send_text_only_input in ['s', 'sim', 'y', 'yes']
+    
     # Cria o dicionário de configuração
     config = {
         "reddit": {
@@ -69,7 +72,8 @@ def create_config():
         "subreddits": subreddits,
         "check_interval": check_interval,
         "max_posts_per_check": max_posts,
-        "debug_emoji": debug_emoji
+        "debug_emoji": debug_emoji,
+        "send_text_only_posts": send_text_only_posts
     }
     
     # Salva o arquivo

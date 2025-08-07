@@ -10,6 +10,7 @@ Script Python que monitora postagens em comunidades específicas do Reddit e env
 - ✅ Envia mídia (imagens) diretamente no Telegram
 - ✅ Download e envio automático de vídeos do Reddit
 - ✅ Emojis de depuração para identificar tipo de conteúdo
+- ✅ Processa apenas a primeira mídia quando há múltiplas imagens/vídeos
 - ✅ Evita posts duplicados
 - ✅ Log detalhado de atividades
 - ✅ Configuração via arquivo JSON
@@ -88,6 +89,7 @@ python reddit_to_telegram.py
 - **check_interval**: Intervalo entre verificações em segundos (padrão: 300 = 5 minutos)
 - **max_posts_per_check**: Máximo de posts para verificar por ciclo
 - **debug_emoji**: Ativar/desativar emojis de depuração nas mensagens (true/false, padrão: true)
+- **send_text_only_posts**: Enviar posts que contêm apenas texto (sem mídia) (true/false, padrão: false)
 
 ## Uso
 
@@ -144,6 +146,7 @@ Os emojis de depuração ajudam a identificar o tipo de conteúdo e podem ser at
 - **Vídeos do Reddit**: Baixados automaticamente e enviados como vídeo nativo
 - **Links**: Incluídos na mensagem com preview automático
 - **Posts de texto**: Apenas título e conteúdo
+- **Múltiplas mídias**: Quando um post contém várias imagens ou vídeos, apenas a primeira mídia é processada e enviada
 
 ### Configuração do Link do Bot:
 Para personalizar o link "CLIQUE AQUI" nas mensagens:
