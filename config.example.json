@@ -1,0 +1,23 @@
+{
+    "reddit": {
+        "client_id": "SEU_CLIENT_ID_REDDIT_AQUI",
+        "client_secret": "SEU_CLIENT_SECRET_REDDIT_AQUI",
+        "user_agent": "Mozilla/5.0 (Linux; Android 10; Infinix X690) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/92.0.4515.166 Mobile Safari/537.36"
+    },
+    "telegram": {
+        "bot_token": "1234567890:ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijk",
+        "chat_id": "-1234567890"
+    },
+    "bot_link": "https://t.me/seu_bot_aqui",
+    "subreddits": [
+        "python",
+        "programming",
+        "technology",
+        "MachineLearning",
+        "webdev",
+        "javascript"
+    ],
+    "check_interval": 300,
+    "max_posts_per_check": 10,
+    "debug_emoji": true
+}
